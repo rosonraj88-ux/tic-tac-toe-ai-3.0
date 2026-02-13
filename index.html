@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultimate Tic Tac Toe</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}
+body{
+height:100vh;
+display:flex;
+justify-content:center;
+align-items:center;
+background:linear-gradient(135deg,#0f0c29,#302b63,#24243e);
+color:white;
+overflow:hidden;
+transition:0.4s;
+}
+
+/* Screens */
+.screen{
+position:absolute;
+width:100%;
+height:100%;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+gap:15px;
+padding:20px;
+text-align:center;
+}
+
+/* Glow Animation */
+@keyframes glowPulse{
+0%{text-shadow:0 0 10px #00f7ff;}
+50%{text-shadow:0 0 25px #00f7ff;}
+100%{text-shadow:0 0 10px #00f7ff;}
+}
+
+/* Welcome */
+#welcome h1{
+font-size:32px;
+animation:glowPulse 2s infinite;
+}
+
+#creator{
+position:absolute;
+bottom:20px;
+opacity:0.8;
+font-size:14px;
+}
+
+/* Inputs */
+input, select{
+padding:12px;
+width:90%;
+max-width:250px;
+border:none;
+border-radius:25px;
+text-align:center;
+font-size:16px;
+margin:5px 0;
+}
+
+/* Buttons */
+button{
+padding:12px 20px;
+border:none;
+border-radius:25px;
+cursor:pointer;
+font-weight:bold;
+background:#00f7ff;
+color:black;
+transition:0.3s;
+min-width:180px;
+margin-top:10px;
+}
+
+button:hover{
+transform:scale(1.05);
+box-shadow:0 0 15px #00f7ff;
+}
+
+/* Board */
+#board{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:10px;
+width:90%;
+max-width:320px;
+margin:10px auto;
+}
+
+.cell{
+aspect-ratio:1;
+background:#111;
+display:flex;
+justify-content:center;
+align-items:center;
+font-size:32px;
+border-radius:15px;
+cursor:pointer;
+transition:0.3s;
+}
+
+.cell:hover{
+box-shadow:0 0 15px #00f7ff;
+}
+
+#score{
+font-size:14px;
+margin-top:5px;
+}
+
+@media(max-width:500px){
+#board{
+grid-template-columns:repeat(3,1fr);
+}
+.cell{
+font-size:28px;
+}
+#welcome h1{
+font-size:28px;
+}
+}
+</style>
+</head>
+<body>
+
+<!-- Sounds -->
+<audio id="welcomeMusic" loop>
+<source src="https://cdn.pixabay.com/download/audio/2022/03/15/audio_c8a1f7.mp3?filename=future-bass-117997.mp3" type="audio/mp3">
+</audio>
+
+<audio id="clickSound">
+<source src="https://www.soundjay.com/button/sounds/button-16.mp3" type="audio/mp3">
+</audio>
+
+<audio id="winSound">
+<source src="https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3" type="audio/mp3">
+</audio>
+
+<audio id="themeSound">
+<source src="https://www.soundjay.com/button/sounds/button-10.mp3" type="audio/mp3">
+</audio>
+
+<!-- Welcome Screen -->
+<div id="welcome" class="screen">
+<h1>Ultimate Tic Tac Toe</h1>
+<button onclick="goToMenu()" class="glow">Start</button>
+<div id="creator">Created by Roshan</div>
+</div>
+
+<!-- Menu -->
+<div id="menu" class="screen" style="display:none">
+<h2>Game Setup</h2>
+
+<input type="text" id="player1" placeholder="Enter Player 1 Name">
+<input type="text" id="player2" placeholder="Enter Player 2 Name">
+
+<!-- Mode and Theme Selection -->
+<div style="margin-top:20px; width:100%; max-width:300px;">
+
+<h3>Mode Selection</h3>
+<select id="modeSelect" onchange="setMode(this.value)">
+  <option value="">-- Select Mode --</option>
+  <option value="pvp">Player vs Player</option>
+  <option value="easy">AI Easy</option>
+  <option value="hard">AI Hard</option>
+</select>
+
+<h3 style="margin-top:15px;">Theme Selection</h3>
+<select id="themeSelect" onchange="setTheme(this.value)">
+  <option value="">-- Select Theme --</option>
+  <option value="blue">Neon Blue</option>
+  <option value="purple">Neon Purple</option>
+  <option value="green">Matrix Green</option>
+  <option value="red">Fire Red</option>
+</select>
+
+<button onclick="validateAndStart()" class="glow">Play Game</button>
+</div>
+</div>
+
+<!-- Game -->
+<div id="game" class="screen" style="display:none">
+<h3 id="modeTitle"></h3>
+<div id="board"></div>
+<div id="status"></div>
+<div id="score"></div>
+<div style="display:flex;gap:10px;margin-top:10px;">
+<button onclick="restartGame()">Restart</button>
+<button onclick="backToMenu()">Menu</button>
+</div>
+</div>
+
+<script>
+let board=[];
+let currentPlayer="X";
+let gameActive=false;
+let mode="";
+let selectedTheme="";
+let player1Name="";
+let player2Name="";
+let scores={X:0,O:0};
+
+const music=document.getElementById("welcomeMusic");
+const clickSound=document.getElementById("clickSound");
+const winSound=document.getElementById("winSound");
+const themeSound=document.getElementById("themeSound");
+music.volume=0.5;
+music.play().catch(()=>{});
+
+function playSound(s){s.currentTime=0;s.play();}
+
+function goToMenu(){
+document.getElementById("welcome").style.display="none";
+document.getElementById("menu").style.display="flex";
+}
+
+function setMode(m){
+mode=m;
+playSound(clickSound);
+if(m!=="pvp"){
+document.getElementById("player2").value="AI";
+document.getElementById("player2").disabled=true;
+}else{
+document.getElementById("player2").disabled=false;
+document.getElementById("player2").value="";
+}
+}
+
+function setTheme(t){
+selectedTheme=t;
+playSound(themeSound);
+if(t==="blue") document.body.style.background="linear-gradient(135deg,#0f0c29,#302b63,#24243e)";
+if(t==="purple") document.body.style.background="linear-gradient(135deg,#1a0026,#3a0ca3,#7209b7)";
+if(t==="green") document.body.style.background="black";
+if(t==="red") document.body.style.background="linear-gradient(135deg,#200000,#8b0000,#ff0000)";
+}
+
+function validateAndStart(){
+player1Name=document.getElementById("player1").value.trim();
+player2Name=document.getElementById("player2").value.trim();
+mode=document.getElementById("modeSelect").value;
+selectedTheme=document.getElementById("themeSelect").value;
+
+if(player1Name===""||player2Name===""){alert("Enter player names"); return;}
+if(mode===""){alert("Select mode"); return;}
+if(selectedTheme===""){alert("Select theme"); return;}
+
+music.pause();
+startGame();
+}
+
+function startGame(){
+document.getElementById("menu").style.display="none";
+document.getElementById("game").style.display="flex";
+document.getElementById("modeTitle").innerText=
+mode==="pvp"?"Player vs Player":mode==="easy"?"AI Easy":"AI Hard";
+initBoard();
+}
+
+function initBoard(){
+board=["","","","","","","","",""];
+currentPlayer="X";
+gameActive=true;
+document.getElementById("board").innerHTML="";
+updateStatus();
+updateScore();
+
+board.forEach((_,i)=>{
+let cell=document.createElement("div");
+cell.classList.add("cell");
+cell.dataset.index=i;
+cell.onclick=handleClick;
+document.getElementById("board").appendChild(cell);
+});
+}
+
+function handleClick(){
+let i=this.dataset.index;
+if(board[i]!==""||!gameActive)return;
+makeMove(i,currentPlayer);
+if(mode!=="pvp"&&gameActive&&currentPlayer==="O"){
+setTimeout(aiMove,400);
+}
+}
+
+function makeMove(i,player){
+board[i]=player;
+document.querySelectorAll(".cell")[i].innerText=player;
+playSound(clickSound);
+
+if(checkWinner(player)){
+scores[player]++;
+gameActive=false;
+playSound(winSound);
+updateScore();
+alert(`${player==="X"?player1Name:player2Name} Wins! 🎉`);
+setTimeout(initBoard,1500);
+return;
+}
+
+if(!board.includes("")){
+alert("It's a Draw! 🤝");
+setTimeout(initBoard,1500);
+return;
+}
+
+currentPlayer=player==="X"?"O":"X";
+updateStatus();
+}
+
+function aiMove(){
+if(mode==="easy"){
+let empty=board.map((v,i)=>v===""?i:null).filter(v=>v!==null);
+let r=empty[Math.floor(Math.random()*empty.length)];
+makeMove(r,"O");
+}else{
+let best=-Infinity;
+let move;
+for(let i=0;i<9;i++){
+if(board[i]===""){
+board[i]="O";
+let score=minimax(board,false);
+board[i]="";
+if(score>best){
+best=score;
+move=i;
+}
+}
+}
+makeMove(move,"O");
+}
+}
+
+function minimax(b,isMax){
+if(checkWinner("O"))return 1;
+if(checkWinner("X"))return -1;
+if(!b.includes(""))return 0;
+if(isMax){let best=-Infinity;for(let i=0;i<9;i++){if(b[i]===""){b[i]="O";best=Math.max(best,minimax(b,false));b[i]="";}}return best;}
+else{let best=Infinity;for(let i=0;i<9;i++){if(b[i]===""){b[i]="X";best=Math.min(best,minimax(b,true));b[i]="";}}return best;}
+}
+
+function checkWinner(p){
+const w=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+return w.some(c=>c.every(i=>board[i]===p));
+}
+
+function updateStatus(){
+document.getElementById("status").innerText=
+(currentPlayer==="X"?player1Name:player2Name)+"'s Turn";
+}
+
+function updateScore(){
+document.getElementById("score").innerText=
+player1Name+" (X): "+scores.X+" | "+
+player2Name+" (O): "+scores.O;
+}
+
+function restartGame(){initBoard();}
+
+function backToMenu(){
+document.getElementById("game").style.display="none";
+document.getElementById("menu").style.display="flex";
+music.play();
+}
+</script>
+</body>
+</html>
